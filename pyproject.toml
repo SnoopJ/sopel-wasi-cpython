@@ -1,0 +1,45 @@
+[build-system]
+requires = ["maturin>=1,<2"]
+build-backend = "maturin"
+
+[project]
+name = "sopel-wasi-cpython"
+version = "1.0.0"
+description = "WASI CPython plugin for Sopel"
+keywords = [
+  "sopel",
+  "plugin",
+  "bot",
+  "irc",
+  "WebAssembly",
+  "WASI",
+]
+authors = [
+  { name="James Gerity", email="snoopjedi@gmail.com" },
+]
+
+readme = "README.md"
+license = { text="EFL-2.0" }
+classifiers = [
+    "Environment :: WebAssembly :: WASI",
+    "Intended Audience :: Developers",
+    "Intended Audience :: System Administrators",
+    "License :: Eiffel Forum License (EFL)",
+    "License :: OSI Approved :: Eiffel Forum License",
+    "Topic :: Communications :: Chat :: Internet Relay Chat",
+]
+requires-python = ">=3.9, <4"
+
+
+[project.urls]
+"Homepage" = "https://github.com/SnoopJ/sopel-wasi-cpython"
+
+
+[tool.maturin]
+python-source = "python"
+module-name = "sopel_wasi_cpython.cpython_wasi_wrapper"
+profile = "release"
+
+
+[project.entry-points."sopel.plugins"]
+wasi-cpython = "sopel_wasi_cpython"

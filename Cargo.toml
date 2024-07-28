@@ -1,0 +1,19 @@
+[package]
+name = "sopel-wasi-cpython"
+version = "1.0.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+anyhow = "1.0.80"
+bytes = "1"
+pyo3 = { version = "0.22.2", features = ["anyhow", "extension-module"] }
+wasi-common = "18.0.1"
+wasmtime = "18.0.1"
+wasmtime-wasi = "18.0.1"
+
+[lib]
+name = "cpython_wasi_wrapper"
+path = "rust/wasm_host.rs"
+crate-type = ["cdylib"]
