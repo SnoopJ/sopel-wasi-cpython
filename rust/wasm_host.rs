@@ -6,7 +6,7 @@ use wasmtime_wasi::preview2::{WasiCtx, WasiCtxBuilder, DirPerms, FilePerms};
 
 use pyo3::prelude::*;
 use pyo3::{wrap_pyfunction, wrap_pymodule};
-use pyo3::types::{PyBytes};
+use pyo3::types::{PyBytes, PyDict, PyNone};
 
 
 struct WasiHostCtx {
@@ -46,7 +46,8 @@ fn run_cpython<'py>(
     fuel: Option<u64>,
     stdout_nbytes: Option<usize>,
     stderr_nbytes: Option<usize>,
-) -> PyResult<(Py<PyBytes>, Py<PyBytes>)> {
+) -> PyResult<Py<PyDict>> {
+    let result = PyDict::new_bound(py);
     let mut config = Config::new();
     config
         .cache_config_load_default()?
@@ -116,15 +117,59 @@ fn run_cpython<'py>(
     // Instantiate our module with the imports we've created, and run it.
     let module = Module::from_file(&engine, wasm_path)?;
     linker.module(&mut store, "", &module)?;
-    linker
+
+    let wasm_result = linker
         .get_default(&mut store, "")?
         .typed::<(), ()>(&store)?
-        .call(&mut store, ())?;
+        .call(&mut store, ());
+
+
+    if wasm_result.is_err() {
+        let err = wasm_result.unwrap_err();
+        result.set_item("error", err.root_cause().to_string())?;
+
+        // TODO:it really seems like it should be possible to check the
+        // exit code of the guest application, but screw it, we'll handle
+        // that on the Python side by parsing the string representation
+
+        let trap = err.downcast_ref::<Trap>();
+        if trap.is_some() {
+            result.set_item("errorType", match trap.unwrap() {
+                // TODO:maybe there is a less silly way to do this… ?
+                wasmtime::Trap::StackOverflow => "StackOverflow",
+                wasmtime::Trap::MemoryOutOfBounds => "MemoryOutOfBounds",
+                wasmtime::Trap::HeapMisaligned => "HeapMisaligned",
+                wasmtime::Trap::TableOutOfBounds => "TableOutOfBounds",
+                wasmtime::Trap::IndirectCallToNull => "IndirectCallToNull",
+                wasmtime::Trap::BadSignature => "BadSignature",
+                wasmtime::Trap::IntegerOverflow => "IntegerOverflow",
+                wasmtime::Trap::IntegerDivisionByZero => "IntegerDivisionByZero",
+                wasmtime::Trap::BadConversionToInteger => "BadConversionToInteger",
+                wasmtime::Trap::UnreachableCodeReached => "UnreachableCodeReached",
+                wasmtime::Trap::Interrupt => "Interrupt",
+                wasmtime::Trap::AlwaysTrapAdapter => "AlwaysTrapAdapter",
+                wasmtime::Trap::OutOfFuel => "OutOfFuel",
+                wasmtime::Trap::AtomicWaitNonSharedMemory => "AtomicWaitNonSharedMemory",
+                wasmtime::Trap::NullReference => "NullReference",
+                wasmtime::Trap::CannotEnterComponent => "CannotEnterComponent",
+                &_ => "UNKNOWN",
+            })?;
+        } else {
+            result.set_item("errorType", "UNKNOWN")?;
+        }
+    } else {
+        result.set_item("error", PyNone::get_bound(py))?;
+        result.set_item("errorType", PyNone::get_bound(py))?;
+    }
+
 
     let stdout_bytes = PyBytes::new_bound(py, &stdoutpipe.contents().to_vec());
     let stderr_bytes = PyBytes::new_bound(py, &stderrpipe.contents().to_vec());
 
-    Ok((stdout_bytes.into(), stderr_bytes.into()))
+    result.set_item("stdout", stdout_bytes)?;
+    result.set_item("stderr", stderr_bytes)?;
+
+    Ok(result.into())
 }
 
 
