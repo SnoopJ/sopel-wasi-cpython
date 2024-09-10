@@ -38,12 +38,12 @@ impl wasmtime_wasi::preview2::preview1::WasiPreview1View for WasiHostCtx {
 
 #[pyfunction]
 #[pyo3(pass_module)]
-#[pyo3(signature = (cpython_args, fuel=None, stdout_nbytes=None, stderr_nbytes=None))]
+#[pyo3(signature = (cpython_args, fuel_limit=None, stdout_nbytes=None, stderr_nbytes=None))]
 fn run_cpython<'py>(
     module: &Bound<'py, PyModule>,
     py: Python,
     cpython_args: Vec<String>,
-    fuel: Option<u64>,
+    fuel_limit: Option<u64>,
     stdout_nbytes: Option<usize>,
     stderr_nbytes: Option<usize>,
 ) -> PyResult<Py<PyDict>> {
@@ -53,7 +53,7 @@ fn run_cpython<'py>(
         .cache_config_load_default()?
         .wasm_threads(true)
         .wasm_backtrace(false)
-        .consume_fuel(fuel.is_some());
+        .consume_fuel(fuel_limit.is_some());
     let engine = Engine::new(&config)?;
 
     let mut linker: Linker<WasiHostCtx> = Linker::new(&engine);
@@ -110,8 +110,8 @@ fn run_cpython<'py>(
         preview1_adapter: wasmtime_wasi::preview2::preview1::WasiPreview1Adapter::new(),
     };
     let mut store = Store::new(&engine, host_ctx);
-    if fuel.is_some() {
-        store.set_fuel(fuel.unwrap())?;
+    if fuel_limit.is_some() {
+        store.set_fuel(fuel_limit.unwrap())?;
     }
 
     // Instantiate our module with the imports we've created, and run it.
@@ -122,6 +122,12 @@ fn run_cpython<'py>(
         .get_default(&mut store, "")?
         .typed::<(), ()>(&store)?
         .call(&mut store, ());
+
+    if fuel_limit.is_some() {
+        result.set_item("fuel_remaining", store.get_fuel()?)?;
+    } else {
+        result.set_item("fuel_remaining", PyNone::get_bound(py))?;
+    }
 
 
     if wasm_result.is_err() {
@@ -134,7 +140,7 @@ fn run_cpython<'py>(
 
         let trap = err.downcast_ref::<Trap>();
         if trap.is_some() {
-            result.set_item("errorType", match trap.unwrap() {
+            result.set_item("trapType", match trap.unwrap() {
                 // TODO:maybe there is a less silly way to do this… ?
                 wasmtime::Trap::StackOverflow => "StackOverflow",
                 wasmtime::Trap::MemoryOutOfBounds => "MemoryOutOfBounds",
@@ -155,11 +161,11 @@ fn run_cpython<'py>(
                 &_ => "UNKNOWN",
             })?;
         } else {
-            result.set_item("errorType", "UNKNOWN")?;
+            result.set_item("trapType", "UNKNOWN")?;
         }
     } else {
         result.set_item("error", PyNone::get_bound(py))?;
-        result.set_item("errorType", PyNone::get_bound(py))?;
+        result.set_item("trapType", PyNone::get_bound(py))?;
     }
 
 
