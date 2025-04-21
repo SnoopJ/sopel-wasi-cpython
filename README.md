@@ -12,7 +12,7 @@ repository is licensed under the Eiffel Forum License v2, see [LICENSE](./LICENS
 ## Installation
 
 ```bash
-$ pip install sopel-wasi-cpython
+$ pip install git+https://github.com/SnoopJ/sopel-wasi-cpython
 ```
 
 ## Usage
