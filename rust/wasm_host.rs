@@ -41,13 +41,13 @@ impl wasmtime_wasi::preview2::preview1::WasiPreview1View for WasiHostCtx {
 #[pyo3(signature = (cpython_args, fuel_limit=None, stdout_nbytes=None, stderr_nbytes=None))]
 fn run_cpython<'py>(
     module: &Bound<'py, PyModule>,
-    py: Python,
+    py: Python<'_>,
     cpython_args: Vec<String>,
     fuel_limit: Option<u64>,
     stdout_nbytes: Option<usize>,
     stderr_nbytes: Option<usize>,
 ) -> PyResult<Py<PyDict>> {
-    let result = PyDict::new_bound(py);
+    let result = PyDict::new(py);
     let mut config = Config::new();
     config
         .cache_config_load_default()?
@@ -118,15 +118,18 @@ fn run_cpython<'py>(
     let module = Module::from_file(&engine, wasm_path)?;
     linker.module(&mut store, "", &module)?;
 
-    let wasm_result = linker
-        .get_default(&mut store, "")?
-        .typed::<(), ()>(&store)?
-        .call(&mut store, ());
+    // Release the GIL while the guest program runs to avoid blocking other threads.
+    let wasm_result = py.detach(|| -> Result<()> {
+        linker
+            .get_default(&mut store, "")?
+            .typed::<(), ()>(&store)?
+            .call(&mut store, ())
+    });
 
     if fuel_limit.is_some() {
         result.set_item("fuel_remaining", store.get_fuel()?)?;
     } else {
-        result.set_item("fuel_remaining", PyNone::get_bound(py))?;
+        result.set_item("fuel_remaining", PyNone::get(py))?;
     }
 
 
@@ -164,13 +167,13 @@ fn run_cpython<'py>(
             result.set_item("trapType", "UNKNOWN")?;
         }
     } else {
-        result.set_item("error", PyNone::get_bound(py))?;
-        result.set_item("trapType", PyNone::get_bound(py))?;
+        result.set_item("error", PyNone::get(py))?;
+        result.set_item("trapType", PyNone::get(py))?;
     }
 
 
-    let stdout_bytes = PyBytes::new_bound(py, &stdoutpipe.contents().to_vec());
-    let stderr_bytes = PyBytes::new_bound(py, &stderrpipe.contents().to_vec());
+    let stdout_bytes = PyBytes::new(py, &stdoutpipe.contents().to_vec());
+    let stderr_bytes = PyBytes::new(py, &stderrpipe.contents().to_vec());
 
     result.set_item("stdout", stdout_bytes)?;
     result.set_item("stderr", stderr_bytes)?;

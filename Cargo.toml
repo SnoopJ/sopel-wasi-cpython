@@ -23,7 +23,7 @@ jobs = -1
 [dependencies]
 anyhow = "1.0.80"
 bytes = "1"
-pyo3 = { version = "0.22.2", features = ["anyhow", "extension-module"] }
+pyo3 = { version = "0.28.3", features = ["anyhow", "extension-module"] }
 wasi-common = "18.0.1"
 wasmtime = "18.0.1"
 wasmtime-wasi = "18.0.1"
