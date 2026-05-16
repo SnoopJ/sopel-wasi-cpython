@@ -50,8 +50,9 @@ def exec_py(bot, trigger):
         user_program,
         fuel_limit=fuel_limit,
     )
-    wasm_stdout = wasm_result["stdout"].decode()
-    wasm_stderr = wasm_result["stderr"].decode()
+    NEWLINE_REPLACEMENT = " \N{RETURN SYMBOL} "
+    wasm_stdout = wasm_result["stdout"].decode().replace("\n", NEWLINE_REPLACEMENT)
+    wasm_stderr = wasm_result["stderr"].decode().replace("\n", NEWLINE_REPLACEMENT)
 
     # NOTE:2024-08-02:snoopj:The WASI build of CPython puts out these messages. They're benign and expected, so we can strip them
     benign_error = "Could not find platform independent libraries <prefix>\nCould not find platform dependent libraries <exec_prefix>\n"
