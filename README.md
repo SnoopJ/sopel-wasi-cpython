@@ -48,11 +48,17 @@ This plugin runs an isolated copy of the CPython interpreter in [WebAssembly](ht
 using the [WebAssembly System Interface (WASI)](https://github.com/WebAssembly/WASI)
 to handle (most) system calls.
 
-A pre-built copy of the WASI build of CPython (against commit [`bc93923`](https://github.com/python/cpython/commit/bc93923a2dee00751e44da58b6967c63e3f5c392))
-is included in deal this repository, but it can be replaced with a different
-version produced by following the [build instructions](https://devguide.python.org/getting-started/setup-building/#wasi)
-for the `wasm32-wasi` build of CPython by replacing the `python.wasm` file.
-(tl;dr, I built mine with: `WASI_SDK_PATH=/path/to/wasi-sdk-21.0 python3.12 Tools/wasm/wasi.py build`)
+A pre-built copy of the WASI build of CPython [courtesy of Brett Cannon](https://github.com/brettcannon/cpython-wasi-build)
+is included in this repository, but it can be replaced as long as the filenames match. The update process is approximately:
+
+```
+$ rm -fr python/sopel_wasi_cpython/CPython-WASI/*
+$ unzip -d python/sopel_wasi_cpython/CPython-WASI/ python-3.14.7-wasi_sdk-24.zip  # previously downloaded
+...
+$ ln -s lib/python3.14 python/sopel_wasi_cpython/CPython-WASI/stdlib  # version should match whatever build is being used
+```
+
+A rebuild of the Rust component of this package is NOT necessary after this update.
 
 ### Security
 
